@@ -90,7 +90,7 @@ async def roll_dice(repeat: int=1):
     rolling a dice for you
     roll_dice 'number' if you wish to roll 'number' times
     """
-    for i in range(repeat):
+    for _ in range(repeat):
         await bot.say(random.choice([x for x in range(1, 7)]))
 
 
@@ -99,16 +99,18 @@ async def price(interval: int = 2, currency='bitcoin', hour=datetime.now().hour,
     """
         currency prints current price of euro at 2 min interval for 1 hours
         price 'currency' 'interval' 'hour' 'date' - prints 'currency' price every 'minutes' until 'hour', 'date'.
-        If not specified hour, are current hour and date respectively date format 'yyyy-mm-dd'
+        If not specified hour, are current hour and date respectively date format 'yyyy-mm-dd' and 24h format
         """
     global ERROR_READ
     global currencies
     interval *= 60
     input_date = [int(item) for item in input_date.split('-')]
     try:
-        input_date = datetime.date(*input_date)
+        input_date = date(*input_date)
     except ValueError:
         print('Invalid time format.')
+    hour = int(hour)
+
     while date.today() <= input_date and datetime.now().hour <= hour:
         try:
             data = currencies[currency]()
@@ -134,4 +136,3 @@ async def rules(filename=RULE_FILE):
 
 
 bot.run(TOKEN)
-
