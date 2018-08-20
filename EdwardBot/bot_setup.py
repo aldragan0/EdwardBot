@@ -12,7 +12,7 @@ from datetime import datetime, date
 from discord.ext import commands
 
 
-TOKEN_FILE = '4jvuhvm1p34ji.txt'
+TOKEN_FILE = 'token_file.txt'
 RULE_FILE = 'rules.txt'
 ERROR_READ = 'Error. Could not read data.'
 
@@ -24,22 +24,58 @@ def get_content(filename):
     return content
 
 
-def get_bitcoin():
+def get_eur():
     global ERROR_READ
-    url = 'https://cryptowat.ch/'
+    url = 'https://www.xe.com/currencyconverter/convert/?Amount=1&From=EUR&To=USD'
     page = urllib3.PoolManager(cert_reqs='CERT_REQUIRED', ca_certs=certifi.where()).request('GET', url)
     soup = BeautifulSoup(page.data, 'html.parser')
     try:
-        bitcoin_price = soup.find('div', attrs={'class': 'rankings-col__header__segment'}).text.replace('BTCusd ', '$')
-        bitcoin_change = soup.find('div', attrs={'class': 'rankings-col__header__segment'
-                                                          ' rankings-col__header__segment--right'}).text
+        eur_price = soup.find('span', attrs={'class': 'uccResultAmount'}).text
+        eur_price = '$' + eur_price
+        print(eur_price)
+        return "EUR: {}".format(eur_price)
+    except AttributeError:
+        return ERROR_READ
+
+
+def get_bitcoin():
+    global ERROR_READ
+    url = 'https://www.worldcoinindex.com/coin/bitcoin'
+    page = urllib3.PoolManager(cert_reqs='CERT_REQUIRED', ca_certs=certifi.where()).request('GET', url)
+    soup = BeautifulSoup(page.data, 'html.parser')
+    try:
+        bitcoin_price = soup.find('div', attrs={'class': 'col-md-6 col-xs-6 coinprice'}).text
+        bitcoin_price = re.sub("[^0-9.,$]", "", bitcoin_price)
+        print(bitcoin_price)
+        bitcoin_change = soup.find('div', attrs={'class': 'col-md-6 col-xs-6 coin-percentage'}).text
+        bitcoin_change = re.sub("[^0-9.,%\-+]", "", bitcoin_change)
+        print(bitcoin_change)
         return "BTC: {}, change: {}".format(bitcoin_price, bitcoin_change)
     except AttributeError:
         return ERROR_READ
 
 
+def get_ethereum():
+    global ERROR_READ
+    url = 'https://www.worldcoinindex.com/coin/ethereum'
+    page = urllib3.PoolManager(cert_reqs='CERT_REQUIRED', ca_certs=certifi.where()).request('GET', url)
+    soup = BeautifulSoup(page.data, 'html.parser')
+    try:
+        eth_price = soup.find('div', attrs={'class': 'col-md-6 col-xs-6 coinprice'}).text
+        eth_price = re.sub("[^0-9.,$]", "", eth_price)
+        print(eth_price)
+        eth_change = soup.find('div', attrs={'class': 'col-md-6 col-xs-6 coin-percentage'}).text
+        eth_change = re.sub("[^0-9.,%\-+]", "", eth_change)
+        print(eth_change)
+        return "ETH: {}, change: {}".format(eth_price, eth_change)
+    except AttributeError:
+        return ERROR_READ
+
+
 currencies = {
-    'bitcoin': get_bitcoin
+    'btc': get_bitcoin,
+    'eur': get_eur,
+    'eth': get_ethereum
 }
 
 TOKEN = get_content(TOKEN_FILE).pop()
@@ -85,19 +121,30 @@ async def on_member_join(member):
 
 
 @bot.command()
-async def roll_dice(repeat: int=1):
+async def roll_dice(dice_size=6, repeat: int=1):
     """
     rolling a dice for you
-    roll_dice 'number' if you wish to roll 'number' times
+    roll_dice 'dice_size' if you wish tto roll a dice of size 'dice_size'
+    roll_dice 'dice_size' 'number' if you wish to roll a dice of size 'dice_size' 'number' times
     """
-    for _ in range(repeat):
-        await bot.say(random.choice([x for x in range(1, 7)]))
+    for i in range(repeat):
+        await bot.say(random.choice([x for x in range(1, dice_size + 1)]))
 
 
 @bot.command()
-async def price(interval: int = 2, currency='bitcoin', hour=datetime.now().hour, input_date=str(date.today())):
+async def rules(filename=RULE_FILE):
     """
-        currency prints current price of euro at 2 min interval for 1 hours
+    display rules for current server
+    """
+    await bot.say(rules)
+    for rule in get_content(filename):
+        await bot.say(rule)
+
+
+@bot.command()
+async def price(currency='btc', interval: int = 2, hour=datetime.now().hour, input_date=str(date.today())):
+    """
+        currency prints current price of bitcoin at 2 min interval for 1 hours
         price 'currency' 'interval' 'hour' 'date' - prints 'currency' price every 'minutes' until 'hour', 'date'.
         If not specified hour, are current hour and date respectively date format 'yyyy-mm-dd' and 24h format
         """
@@ -106,7 +153,9 @@ async def price(interval: int = 2, currency='bitcoin', hour=datetime.now().hour,
     interval *= 60
     input_date = [int(item) for item in input_date.split('-')]
     try:
+        print("Processing currency price")
         input_date = date(*input_date)
+        print("Done processing currency")
     except ValueError:
         print('Invalid time format.')
     hour = int(hour)
@@ -123,16 +172,6 @@ async def price(interval: int = 2, currency='bitcoin', hour=datetime.now().hour,
         except KeyError:
             await bot.say('Invalid currency.')
             break
-
-
-@bot.command()
-async def rules(filename=RULE_FILE):
-    """
-    display rules for current server
-    """
-    await bot.say(rules)
-    for rule in get_content(filename):
-        await bot.say(rule)
 
 
 bot.run(TOKEN)
